@@ -49,7 +49,7 @@ export default async function ListPage({ params }: { params: Promise<{ id: strin
     <MainColumn width={680}>
       <div className="pt-14">
         <p className="text-[13px] text-[var(--color-fg-secondary)]">{list.user.name}</p>
-        <h1 className="mt-2 text-[42px] font-bold leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">{list.name}</h1>
+        <h1 className="mt-2 text-[42px] font-medium leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">{list.name}</h1>
         <p className="mt-2 text-[13px] text-[var(--color-fg-secondary)]">
           {list.items.length} {list.items.length === 1 ? 'story' : 'stories'}
           {list.isPrivate && ' · Private'} · Created {formatDate(list.createdAt)}

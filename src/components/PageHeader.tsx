@@ -11,7 +11,7 @@ export function PageHeader({
   return (
     <>
       <div className="flex items-center justify-between gap-6 pt-14">
-        <h1 className="text-[42px] font-bold leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">{title}</h1>
+        <h1 className="text-[42px] font-medium leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">{title}</h1>
         {action}
       </div>
       {tabs && (

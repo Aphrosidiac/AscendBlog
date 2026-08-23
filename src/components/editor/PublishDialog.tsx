@@ -62,7 +62,7 @@ export function PublishDialog({
       </button>
 
       <div className="w-full max-w-[540px] px-6">
-        <h2 className="text-[20px] font-bold text-[var(--color-fg)]">
+        <h2 className="text-[20px] font-medium text-[var(--color-fg)]">
           {alreadyPublished ? 'Update your story' : 'Story preview'}
         </h2>
         <p className="mt-4 text-[14px] text-[var(--color-fg-secondary)]">

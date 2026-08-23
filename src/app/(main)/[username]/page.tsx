@@ -78,7 +78,7 @@ export default async function ProfilePage({ params, searchParams }: { params: Pa
       <main className="min-w-0 flex-1 px-6">
         <div className="mx-auto w-full pt-14" style={{ maxWidth: 680 }}>
           <div className="flex items-start justify-between gap-6">
-            <h1 className="flex items-center gap-3 text-[42px] font-bold leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">
+            <h1 className="flex items-center gap-3 text-[42px] font-medium leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">
               {profile.name}
               {profile.isVerified && <IconVerified />}
             </h1>

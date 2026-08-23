@@ -38,7 +38,7 @@ export async function PeopleList({ handle, mode }: { handle: string; mode: 'foll
         <Link href={`/${handle}`} className="text-[13px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]">
           {profile.name}
         </Link>
-        <h1 className="mt-2 text-[42px] font-bold leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">
+        <h1 className="mt-2 text-[42px] font-medium leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">
           {mode === 'followers' ? 'Followers' : 'Following'}
         </h1>
         <p className="mt-2 text-[13px] text-[var(--color-fg-secondary)]">{compactNumber(people.length)} people</p>

@@ -25,7 +25,7 @@ export async function AsideRail({ userId, showPicks = true }: { userId?: string;
     >
       {showPicks && picks.length > 0 && (
         <section className="mb-10">
-          <h2 className="mb-4 text-[16px] font-bold text-[var(--color-fg)]">Staff Picks</h2>
+          <h2 className="mb-4 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Staff Picks</h2>
           <ul className="space-y-5">
             {picks.map((p) => (
               <li key={p.slug}>
@@ -58,7 +58,7 @@ export async function AsideRail({ userId, showPicks = true }: { userId?: string;
       )}
 
       <section className="mb-10">
-        <h2 className="mb-4 text-[16px] font-bold text-[var(--color-fg)]">Recommended topics</h2>
+        <h2 className="mb-4 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Recommended topics</h2>
         <ul className="flex flex-wrap gap-2">
           {topics.map((t) => (
             <li key={t.slug}>
@@ -78,7 +78,7 @@ export async function AsideRail({ userId, showPicks = true }: { userId?: string;
 
       {people.length > 0 && (
         <section className="mb-10">
-          <h2 className="mb-4 text-[16px] font-bold text-[var(--color-fg)]">Who to follow</h2>
+          <h2 className="mb-4 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Who to follow</h2>
           <ul className="space-y-4">
             {people.map((p) => (
               <li key={p.id} className="flex items-start gap-2">

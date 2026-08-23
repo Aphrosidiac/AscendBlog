@@ -73,7 +73,7 @@ export async function PublicationPage({ slug }: { slug: string }) {
         className="sticky hidden shrink-0 self-start border-l border-[var(--color-border)] px-6 pt-14 xl:block"
         style={{ width: 'var(--width-aside)', top: 'var(--height-header)' }}
       >
-        <h2 className="text-[16px] font-bold text-[var(--color-fg)]">Writers</h2>
+        <h2 className="text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Writers</h2>
         <ul className="mt-4 space-y-4">
           {pub.members.map((m) => (
             <li key={m.userId} className="flex items-center gap-3">

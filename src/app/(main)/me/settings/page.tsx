@@ -55,7 +55,7 @@ export default async function SettingsPage({
 
         {tab === 'account' && (
           <>
-            <h2 className="mt-10 text-[16px] font-bold text-[var(--color-fg)]">Profile</h2>
+            <h2 className="mt-10 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Profile</h2>
             <div className="divide-y divide-[var(--color-border)]">
               <Row label="Email address" desc="The address you use to sign in." value={me.email} />
               <Row label="Username and subdomain" desc="Edit your @username." value={`@${me.username}`} />
@@ -63,12 +63,12 @@ export default async function SettingsPage({
             <ProfileFields
               initial={{ name: me.name, bio: me.bio ?? '', about: me.about ?? '', pronouns: me.pronouns ?? '' }}
             />
-            <h2 className="mt-12 text-[16px] font-bold text-[var(--color-fg)]">Stories</h2>
+            <h2 className="mt-12 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Stories</h2>
             <div className="divide-y divide-[var(--color-border)]">
               <Row label="Your stories" desc="Drafts, published stories, and responses." href="/me/stories/drafts" />
               <Row label="Stats" desc="Views, reads, and claps across your writing." href="/me/stats" />
             </div>
-            <h2 className="mt-12 text-[16px] font-bold text-[var(--color-fg)]">Sign out</h2>
+            <h2 className="mt-12 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Sign out</h2>
             <form action="/api/auth/signout" method="post" className="py-5">
               <button className="text-[14px] text-[var(--color-fg-error)] hover:underline">Sign out of Ascend</button>
             </form>
@@ -121,7 +121,7 @@ export default async function SettingsPage({
         className="sticky hidden shrink-0 self-start border-l border-[var(--color-border)] px-6 pt-14 xl:block"
         style={{ width: 'var(--width-aside)', top: 'var(--height-header)' }}
       >
-        <h2 className="text-[16px] font-bold text-[var(--color-fg)]">Suggested help articles</h2>
+        <h2 className="text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Suggested help articles</h2>
         <ul className="mt-5 space-y-4 text-[14px] text-[var(--color-fg-secondary)]">
           {['Sign in or sign up to Ascend', 'Your profile page', 'Writing and publishing your first story', 'How the feed decides what you see', 'Getting started with lists'].map((t) => (
             <li key={t}><Link href="/help" className="hover:text-[var(--color-fg)]">{t}</Link></li>

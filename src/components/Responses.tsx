@@ -47,7 +47,7 @@ export async function Responses({ postId, signedIn }: { postId: string; signedIn
 
   return (
     <section id="responses" className="border-t border-[var(--color-border)] py-10">
-      <h2 className="mb-6 text-[20px] font-bold text-[var(--color-fg)]">
+      <h2 className="mb-6 text-[20px] font-medium text-[var(--color-fg)]">
         Responses ({rows.length})
       </h2>
 

@@ -33,7 +33,7 @@ export function NewListButton() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6" role="dialog" aria-modal="true" aria-label="Create a list">
           <div className="w-full max-w-[400px] rounded-[4px] bg-[var(--color-bg)] p-6">
-            <h2 className="text-[20px] font-bold text-[var(--color-fg)]">Create a list</h2>
+            <h2 className="text-[20px] font-medium text-[var(--color-fg)]">Create a list</h2>
             <input
               autoFocus
               value={name}

@@ -62,7 +62,7 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
       </nav>
 
       <header className="mx-auto mt-12 w-full text-center" style={{ maxWidth: 680 }}>
-        <h1 className="text-[42px] font-bold leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">{tag.name}</h1>
+        <h1 className="text-[42px] font-medium leading-[52px] tracking-[-0.011em] text-[var(--color-fg)]">{tag.name}</h1>
         <p className="mt-3 text-[14px] text-[var(--color-fg-secondary)]">
           Topic · {compactNumber(tag._count.followers)} followers · {compactNumber(tag._count.posts)} stories
         </p>
@@ -79,7 +79,7 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
       </header>
 
       <div className="mx-auto mt-12 w-full border-t border-[var(--color-border)]" style={{ maxWidth: 680 }}>
-        <h2 className="pt-10 text-[20px] font-bold text-[var(--color-fg)]">Recommended stories</h2>
+        <h2 className="pt-10 text-[24px] font-medium text-[var(--color-fg)]">Recommended stories</h2>
         {posts.length === 0 ? (
           <p className="py-12 text-[14px] text-[var(--color-fg-secondary)]">No stories in this topic yet.</p>
         ) : (

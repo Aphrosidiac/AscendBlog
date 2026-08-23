@@ -51,7 +51,7 @@ export async function StoryRecommendations({
         {p.author.isVerified && <IconVerified />}
       </div>
       <Link href={`/@${p.author.username}/${p.slug}`} className="block">
-        <h3 className="clamp-2 text-[16px] font-bold leading-[20px] text-[var(--color-fg)]">{p.title}</h3>
+        <h3 className="clamp-2 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">{p.title}</h3>
         {p.subtitle && <p className="clamp-2 mt-1 text-[14px] leading-[20px] text-[var(--color-fg-secondary)]">{p.subtitle}</p>}
       </Link>
       <p className="mt-2 text-[13px] text-[var(--color-fg-secondary)]">
@@ -66,7 +66,7 @@ export async function StoryRecommendations({
     <div className="border-t border-[var(--color-border)] py-12">
       {more.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-6 text-[16px] font-bold text-[var(--color-fg)]">
+          <h2 className="mb-6 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">
             More from {more[0].author.name}
           </h2>
           <div className="grid gap-8 sm:grid-cols-2">
@@ -77,7 +77,7 @@ export async function StoryRecommendations({
 
       {recommended.length > 0 && (
         <section>
-          <h2 className="mb-6 text-[16px] font-bold text-[var(--color-fg)]">Recommended from Ascend</h2>
+          <h2 className="mb-6 text-[16px] font-medium leading-[20px] text-[var(--color-fg)]">Recommended from Ascend</h2>
           <div className="grid gap-8 sm:grid-cols-2">
             {recommended.map((p) => <Card key={p.slug} p={p} />)}
           </div>
