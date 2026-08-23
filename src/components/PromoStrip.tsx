@@ -1,24 +1,17 @@
-'use client'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { IconClose } from './icons'
+import { DismissPromo } from './DismissPromo'
 
-const KEY = 'ascend_promo_dismissed'
+export const PROMO_COOKIE = 'ascend_promo_dismissed'
 
-/** Membership strip under the header. Dismissal sticks across sessions. */
-export function PromoStrip() {
-  const [show, setShow] = useState(false)
-
-  useEffect(() => {
-    setShow(localStorage.getItem(KEY) !== '1')
-  }, [])
-
-  if (!show) return null
-
-  function dismiss() {
-    localStorage.setItem(KEY, '1')
-    setShow(false)
-  }
+/**
+ * Membership strip under the header. Dismissal lives in a cookie rather than
+ * localStorage so the strip is decided on the server — no flash-in after
+ * hydration, and its presence is assertable from the served HTML.
+ */
+export async function PromoStrip() {
+  const dismissed = (await cookies()).get(PROMO_COOKIE)?.value === '1'
+  if (dismissed) return null
 
   return (
     <div className="relative flex items-center justify-center gap-3 bg-[var(--color-highlight)] px-12 py-2.5 text-center">
@@ -27,13 +20,7 @@ export function PromoStrip() {
         Read every story on Ascend, and pay the writers directly.{' '}
         <Link href="/membership" className="font-medium underline">Become a member</Link>
       </p>
-      <button
-        onClick={dismiss}
-        aria-label="Dismiss"
-        className="absolute right-4 text-[#242424]/70 transition-colors hover:text-[#242424]"
-      >
-        <IconClose size={18} />
-      </button>
+      <DismissPromo />
     </div>
   )
 }
