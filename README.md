@@ -71,6 +71,26 @@ width where Inter, the obvious default, ran 6.9% wide and would have broken ever
 headline wrap.
 
 
+## Security
+
+Story HTML is **sanitised on write** in `src/lib/sanitize.ts`, against an allowlist
+matching what the editor can produce. The editor shapes what an author types, but
+the editor is not the boundary — `PATCH /api/posts/[id]` takes whatever a client
+sends, and that body is later handed to `dangerouslySetInnerHTML`. It is sanitised
+again on read, so rows written before the guard are covered too.
+
+`src/proxy.ts` sets a per-request nonce CSP (`strict-dynamic`, no `unsafe-inline`
+for scripts); the static headers are in `next.config.ts`. Sign-in is throttled per
+address and per targeted account, and verifies against a dummy hash when the email
+is unknown so response time can't be used to tell a real account from a missing
+one. Write endpoints are throttled via `guardWrites()`.
+
+That throttling is **in-process memory**, which suits a single PM2 fork behind
+nginx and is exactly the limit: counters are per-process and reset on restart.
+More than one instance means moving it to Redis or Postgres. `next dev` also
+re-evaluates route modules on recompile, which resets the counters — only a
+production build gives a true reading.
+
 ## Things worth knowing
 
 - The **member-only paywall truncates server-side**. A CSS-blur gate would ship the
@@ -80,3 +100,15 @@ headline wrap.
 - Prisma 7 moved the datasource URL out of `schema.prisma` into `prisma.config.ts`,
   and `migrate` does not regenerate the client — run `npx prisma generate` after a
   migration or new models are `undefined` at runtime.
+- **Highlights are painted by walking text nodes**, not by rebuilding the paragraph
+  from `textContent`. The simpler version flattens every link, bold and italic in
+  any paragraph that carries a highlight.
+- The editor's autosave is debounced, so it **flushes on `pagehide` with
+  `keepalive`**. Without that, closing the tab drops the last second of typing —
+  a plain `fetch` is cancelled as the document tears down.
+- Editor toolbars use `useEditorState`, not a forced re-render on every
+  `transaction`. Rendering the bubble repositions it, that dispatches a
+  transaction, and the two feed each other until React bails out with "Maximum
+  update depth exceeded".
+- `public/uploads` is written at runtime and is **not** in the build output — it
+  needs to survive deploys separately (a volume, or object storage).
