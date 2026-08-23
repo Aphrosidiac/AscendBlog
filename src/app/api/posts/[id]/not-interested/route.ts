@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { guardWrites } from '@/lib/guard'
 
 /** "Show less like this" — the story drops out of this reader's feed. */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await guardWrites()
+  if (gate) return gate
+
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const { id } = await params
@@ -18,6 +22,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await guardWrites()
+  if (gate) return gate
+
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const { id } = await params

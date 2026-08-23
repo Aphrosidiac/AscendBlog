@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { guardWrites } from '@/lib/guard'
 
 /** Which of my lists contain this story (used by the save popover). */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 /** Toggle this story in one specific list. */
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await guardWrites()
+  if (gate) return gate
+
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const { id } = await params

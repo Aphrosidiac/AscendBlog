@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { writeFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { getCurrentUser } from '@/lib/auth'
+import { guardWrites } from '@/lib/guard'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
 const ALLOWED: Record<string, string> = {
@@ -29,6 +30,9 @@ function sniff(buf: Buffer): string | null {
 }
 
 export async function POST(req: Request) {
+  const gate = await guardWrites()
+  if (gate) return gate
+
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
