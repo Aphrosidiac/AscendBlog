@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { Wordmark } from './Wordmark'
 import { Avatar } from './Avatar'
-import { IconBell, IconMenu, IconSearch, IconWrite } from './icons'
+import { IconBell, IconSearch, IconWrite } from './icons'
+import { MobileNav } from './MobileNav'
 import { UserMenu } from './UserMenu'
 import { SearchBox } from './SearchBox'
 
@@ -41,9 +42,7 @@ export function TopBar({ user, unread = 0, variant = 'app' }: { user: U; unread?
     >
       <div className="flex h-full items-center justify-between pl-[22px] pr-6">
         <div className="flex items-center gap-4">
-          <button aria-label="Sidebar menu" className="text-[var(--color-fg)] lg:hidden">
-            <IconMenu size={24} />
-          </button>
+          <MobileNav user={user} />
           <Wordmark size={30} />
           <SearchBox />
         </div>

@@ -9,6 +9,9 @@ import { StoryActionBar } from '@/components/StoryActionBar'
 import { StoryBody } from '@/components/StoryBody'
 import { Responses } from '@/components/Responses'
 import { StoryFooter } from '@/components/StoryFooter'
+import { StoryStickyBar } from '@/components/StoryStickyBar'
+import { StoryToc } from '@/components/StoryToc'
+import { StoryRecommendations } from '@/components/StoryRecommendations'
 import { formatDate } from '@/lib/utils'
 
 async function load(username: string, slug: string) {
@@ -18,7 +21,7 @@ async function load(username: string, slug: string) {
     include: {
       author: { select: { id: true, name: true, username: true, avatarUrl: true, bio: true, isVerified: true } },
       publication: { select: { slug: true, name: true } },
-      tags: { include: { tag: { select: { slug: true, name: true } } } },
+      tags: { include: { tag: { select: { id: true, slug: true, name: true } } } },
       claps: { select: { count: true, userId: true } },
       _count: { select: { responses: true } },
     },
@@ -70,6 +73,17 @@ export default async function StoryPage({
 
   return (
     <main className="min-w-0 flex-1 px-6">
+      <StoryStickyBar
+        title={post.title}
+        author={post.author}
+        postId={post.id}
+        clapTotal={clapTotal}
+        myClaps={myClaps}
+        responseCount={post._count.responses}
+        saved={saved}
+        signedIn={Boolean(me)}
+      />
+      <StoryToc />
       <article className="mx-auto w-full pt-12" style={{ maxWidth: 'var(--width-story)' }}>
         {post.tags.length > 0 && (
           <ul className="mb-6 flex flex-wrap gap-2">
@@ -142,6 +156,11 @@ export default async function StoryPage({
 
       <div className="mx-auto w-full" style={{ maxWidth: 'var(--width-story)' }}>
         <Responses postId={post.id} signedIn={Boolean(me)} />
+        <StoryRecommendations
+          postId={post.id}
+          authorId={post.authorId}
+          tagIds={post.tags.map((t) => t.tag.id)}
+        />
       </div>
     </main>
   )

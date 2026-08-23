@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { PrismaClient } from './src/generated/prisma/client'
+import { PrismaClient } from '../src/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) })
@@ -36,6 +36,7 @@ async function main() {
     '/explore',
     `/me/lists/${list.id}`,
     '/about', '/membership',
+    `/@${post.author.username}/followers`, `/@${post.author.username}/following`,
   ]
 
   const bad: string[] = []

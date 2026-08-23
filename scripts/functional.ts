@@ -21,6 +21,9 @@ async function main() {
   const post = await prisma.post.findFirstOrThrow({ where: { status: 'PUBLISHED', authorId: other.id } })
 
   // ── CLAP ──────────────────────────────────────────────
+  // Clapping SETS this reader's tally rather than incrementing it, so the
+  // assertion below needs a known starting point to be re-runnable.
+  await prisma.clap.deleteMany({ where: { userId: me.id, postId: post.id } })
   const before = await prisma.clap.aggregate({ where: { postId: post.id }, _sum: { count: true } })
   const clapRes = await fetch(`${BASE}/api/posts/${post.id}/clap`, { method: 'POST', headers: H, body: JSON.stringify({ count: 7 }) })
   const clapJson = await clapRes.json()
@@ -84,6 +87,24 @@ async function main() {
   check('list: created', lRes.status === 201)
   const lBad = await fetch(`${BASE}/api/lists`, { method: 'POST', headers: H, body: JSON.stringify({ name: '  ' }) })
   check('list: rejects blank name', lBad.status === 400)
+
+  // ── SAVE-TO-LIST POPOVER ──────────────────────────────
+  const listsRes = await fetch(`${BASE}/api/posts/${post.id}/lists`, { headers: H })
+  const listsJson = await listsRes.json()
+  check('lists: popover data returns rows', Array.isArray(listsJson.lists) && listsJson.lists.length > 0)
+  const targetList = listsJson.lists[0]
+  const addRes = await fetch(`${BASE}/api/posts/${post.id}/lists`, { method: 'PUT', headers: H, body: JSON.stringify({ listId: targetList.id, add: true }) })
+  const addJson = await addRes.json()
+  check('lists: add to specific list', addRes.ok && addJson.contains === true, JSON.stringify(addJson))
+  check('lists: savedAnywhere true after add', addJson.savedAnywhere === true)
+  const remRes = await fetch(`${BASE}/api/posts/${post.id}/lists`, { method: 'PUT', headers: H, body: JSON.stringify({ listId: targetList.id, add: false }) })
+  const remJson = await remRes.json()
+  check('lists: remove from specific list', remRes.ok && remJson.contains === false)
+
+  // another user's list must not be writable
+  const otherList = await prisma.readingList.findFirstOrThrow({ where: { userId: other.id } })
+  const foreign = await fetch(`${BASE}/api/posts/${post.id}/lists`, { method: 'PUT', headers: H, body: JSON.stringify({ listId: otherList.id, add: true }) })
+  check('authz: cannot write into another user’s list', foreign.status === 404, String(foreign.status))
 
   // ── PROFILE ───────────────────────────────────────────
   const pRes = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: H, body: JSON.stringify({ name: 'Fakhrul', bio: 'Updated bio', about: 'About text', pronouns: 'he/him' }) })

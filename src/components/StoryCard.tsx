@@ -53,16 +53,16 @@ export function StoryCard({ story, reason }: { story: FeedStory; reason?: string
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <Link href={href} className="group block">
-            <h2 className="clamp-2 text-[24px] font-bold leading-[30px] tracking-[-0.016em] text-[var(--color-fg)]">
+            <h2 className="clamp-2 text-[16px] font-bold leading-[20px] tracking-[-0.016em] text-[var(--color-fg)] sm:text-[24px] sm:leading-[30px]">
               {story.title}
             </h2>
-            <p className="clamp-2 mt-1 text-[16px] leading-[20px] text-[var(--color-fg-secondary)]">
+            <p className="clamp-2 mt-1 hidden text-[16px] leading-[20px] text-[var(--color-fg-secondary)] sm:block">
               {story.subtitle || story.excerpt}
             </p>
           </Link>
 
-          <div className="mt-6 flex items-center justify-between">
-            <div className="flex items-center gap-5 text-[13px] text-[var(--color-fg-secondary)]">
+          <div className="mt-3 flex items-center justify-between sm:mt-6">
+            <div className="flex items-center gap-3 text-[13px] text-[var(--color-fg-secondary)] sm:gap-5">
               {story.isMemberOnly && (
                 <span title="Member-only story" aria-label="Member-only story" className="text-[var(--color-highlight)]">★</span>
               )}
@@ -72,8 +72,8 @@ export function StoryCard({ story, reason }: { story: FeedStory; reason?: string
               </Link>
               <button aria-label="Repost" className="hidden hover:text-[var(--color-fg)] sm:block"><IconRepost size={18} /></button>
             </div>
-            <div className="flex items-center gap-4 text-[var(--color-fg-secondary)]">
-              <button aria-label="Show less like this" title="Show less like this" className="hover:text-[var(--color-fg)]">
+            <div className="flex items-center gap-3 text-[var(--color-fg-secondary)] sm:gap-4">
+              <button aria-label="Show less like this" title="Show less like this" className="hidden hover:text-[var(--color-fg)] sm:block">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M7 4h9.5a2 2 0 0 1 2 1.6l1 5A2 2 0 0 1 17.5 13H13l.8 3.5a2 2 0 0 1-1.95 2.5L7 10.5V4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
                   <path d="M4 4h3v6.5H4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -88,7 +88,7 @@ export function StoryCard({ story, reason }: { story: FeedStory; reason?: string
         {story.coverImage && (
           <Link href={href} className="mt-1 shrink-0" tabIndex={-1} aria-hidden>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={story.coverImage} alt="" width={200} height={134} className="h-[134px] w-[200px] object-cover" />
+            <img src={story.coverImage} alt="" width={200} height={134} className="h-[76px] w-[76px] object-cover sm:h-[134px] sm:w-[200px]" />
           </Link>
         )}
       </div>
