@@ -23,6 +23,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# runtime uploads (mount a volume here in production)
+/var/
+
 # env
 .env
 .env*.local

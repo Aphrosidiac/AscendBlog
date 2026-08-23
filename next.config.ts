@@ -6,6 +6,19 @@ import type { NextConfig } from "next";
  */
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  /**
+   * Reading an env-configured directory is dynamic filesystem access, so the
+   * build tracer gives up and traces the whole project for these two routes.
+   * Left alone that would sweep the uploads directory itself into the build
+   * output — the exact coupling the volume exists to break.
+   *
+   * Only affects `output: 'standalone'`; `next start` from a checkout ignores
+   * the trace entirely.
+   */
+  outputFileTracingExcludes: {
+    "/api/upload": ["var/**", "_research/**", "scripts/**", "prisma/**"],
+    "/uploads/[[]...file[]]": ["var/**", "_research/**", "scripts/**", "prisma/**"],
+  },
   async headers() {
     return [
       {

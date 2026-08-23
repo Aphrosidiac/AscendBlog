@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { writeFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { getCurrentUser } from '@/lib/auth'
+import { uploadsDir } from '@/lib/uploads'
 import { guardWrites } from '@/lib/guard'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
@@ -15,8 +16,8 @@ const ALLOWED: Record<string, string> = {
 }
 
 /**
- * Stores an uploaded image under /public/uploads, named by content hash so the
- * same file uploaded twice costs one copy. Type is taken from the sniffed
+ * Stores an uploaded image in the uploads directory, named by content hash so
+ * the same file uploaded twice costs one copy. Type is taken from the sniffed
  * bytes, never from the client-supplied mime.
  */
 function sniff(buf: Buffer): string | null {
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
 
   const hash = createHash('sha256').update(buf).digest('hex').slice(0, 32)
   const name = `${hash}.${ALLOWED[mime]}`
-  const dir = path.join(process.cwd(), 'public', 'uploads')
+  const dir = uploadsDir()
   await mkdir(dir, { recursive: true })
   await writeFile(path.join(dir, name), buf)
 

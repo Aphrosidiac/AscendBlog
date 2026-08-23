@@ -91,6 +91,41 @@ More than one instance means moving it to Redis or Postgres. `next dev` also
 re-evaluates route modules on recompile, which resets the counters — only a
 production build gives a true reading.
 
+## Uploaded media
+
+Uploads are written to `UPLOADS_DIR` (default `./var/uploads`, gitignored) and
+served back by `src/app/uploads/[...file]/route.ts`. They are deliberately **not**
+under `public/`: anything there is part of the build output, so a deploy that
+replaces the directory takes every uploaded image with it.
+
+Filenames are content hashes, so a URL's bytes can never change — they are served
+`immutable` with a one-year max-age, and re-uploading the same image reuses the
+existing file.
+
+To put them on a volume:
+
+```bash
+sudo mkdir -p /var/lib/ascendblog/uploads
+sudo chown -R $USER:$USER /var/lib/ascendblog/uploads
+echo 'UPLOADS_DIR="/var/lib/ascendblog/uploads"' >> .env
+```
+
+The app serves `/uploads/*` on its own, so nothing else is required. nginx can
+take that path over if you would rather it never touched Node:
+
+```nginx
+location /uploads/ {
+    alias /var/lib/ascendblog/uploads/;
+    access_log off;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    add_header X-Content-Type-Options nosniff;
+}
+```
+
+Back the directory up separately — it is the one piece of state that is neither in
+git nor in Postgres.
+
 ## Things worth knowing
 
 - The **member-only paywall truncates server-side**. A CSS-blur gate would ship the
@@ -110,5 +145,8 @@ production build gives a true reading.
   `transaction`. Rendering the bubble repositions it, that dispatches a
   transaction, and the two feed each other until React bails out with "Maximum
   update depth exceeded".
-- `public/uploads` is written at runtime and is **not** in the build output — it
-  needs to survive deploys separately (a volume, or object storage).
+- Reading an env-configured directory is dynamic filesystem access, so Next's
+  build tracer traces the whole project for the two upload routes. Left alone that
+  sweeps `var/uploads` into the build output — the exact coupling the volume
+  exists to break — so `next.config.ts` excludes it. Only matters for
+  `output: 'standalone'`; `next start` from a checkout ignores the trace.
