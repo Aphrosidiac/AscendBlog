@@ -20,25 +20,59 @@ export function StoryBody({
   )
 
   // Paint stored highlights. Runs after render so it survives navigation.
+  //
+  // This walks text nodes and wraps them in place. Rebuilding the paragraph
+  // from textContent would be simpler, but it flattens everything inline —
+  // links stop being links, bold stops being bold — for any paragraph that
+  // happens to carry a highlight.
   useEffect(() => {
     const paras = paragraphs()
-    paras.forEach((p) => { p.innerHTML = p.innerHTML.replace(/<\/?mark[^>]*>/g, '') })
-    const byPara = new Map<number, H[]>()
-    for (const h of marks) {
-      if (!byPara.has(h.paraIndex)) byPara.set(h.paraIndex, [])
-      byPara.get(h.paraIndex)!.push(h)
-    }
-    for (const [idx, list] of byPara) {
-      const p = paras[idx]
-      if (!p) continue
-      const text = p.textContent ?? ''
-      const ordered = [...list].sort((a, b) => b.startOff - a.startOff)
-      let out = text
-      for (const h of ordered) {
-        if (h.startOff < 0 || h.endOff > out.length) continue
-        out = `${out.slice(0, h.startOff)}<mark class="hl">${out.slice(h.startOff, h.endOff)}</mark>${out.slice(h.endOff)}`
+
+    for (const p of paras) {
+      for (const m of Array.from(p.querySelectorAll('mark.hl'))) {
+        m.replaceWith(...Array.from(m.childNodes))
       }
-      p.innerHTML = out
+      p.normalize()
+    }
+
+    const textNodes = (root: Element) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      const out: Text[] = []
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) out.push(n as Text)
+      return out
+    }
+
+    // A <mark> adds no characters, so offsets stay valid across calls.
+    const wrap = (p: Element, start: number, end: number) => {
+      let pos = 0
+      const hits: { node: Text; from: number; to: number }[] = []
+      for (const node of textNodes(p)) {
+        const nodeStart = pos
+        const nodeEnd = (pos += node.data.length)
+        if (nodeEnd <= start || nodeStart >= end) continue
+        hits.push({
+          node,
+          from: Math.max(0, start - nodeStart),
+          to: Math.min(node.data.length, end - nodeStart),
+        })
+      }
+      for (const hit of hits) {
+        let node = hit.node
+        if (hit.to < node.data.length) node.splitText(hit.to)
+        if (hit.from > 0) node = node.splitText(hit.from)
+        const mark = document.createElement('mark')
+        mark.className = 'hl'
+        node.parentNode?.insertBefore(mark, node)
+        mark.appendChild(node)
+      }
+    }
+
+    for (const h of marks) {
+      const p = paras[h.paraIndex]
+      if (!p) continue
+      const len = (p.textContent ?? '').length
+      if (h.startOff < 0 || h.endOff > len || h.startOff >= h.endOff) continue
+      wrap(p, h.startOff, h.endOff)
     }
   }, [marks, paragraphs])
 
