@@ -65,3 +65,13 @@ export function avatarColor(seed: string) {
   const hues = [12, 34, 90, 145, 190, 215, 260, 310]
   return `hsl(${hues[h % hues.length]} 42% 62%)`
 }
+
+/**
+ * Truncate a story to its opening paragraphs for the member-only preview.
+ * Splits on top-level block tags so a cut never lands inside an element.
+ */
+export function previewHtml(html: string, blocks = 3) {
+  const parts = html.match(/<(p|h1|h2|h3|blockquote|ul|ol|pre|figure)[\s\S]*?<\/\1>/g)
+  if (!parts) return html.slice(0, 600)
+  return parts.slice(0, blocks).join('')
+}

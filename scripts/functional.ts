@@ -156,6 +156,52 @@ async function main() {
   const notifs = await prisma.notification.count({ where: { userId: other.id } })
   check('notify: author notified by clap/response', notifs > 0, String(notifs))
 
+  // ── MEMBER-ONLY PAYWALL ───────────────────────────────
+  const memberPost = await prisma.post.findFirst({
+    where: { isMemberOnly: true, status: 'PUBLISHED' },
+    include: { author: true },
+  })
+  if (memberPost) {
+    const path = `/@${memberPost.author.username}/${memberPost.slug}`
+
+    // author sees everything
+    const authorSession = await prisma.session.create({ data: { userId: memberPost.authorId, expiresAt: new Date(Date.now() + 3600_000) } })
+    const asAuthor = await fetch(BASE + path, { headers: { cookie: `ascend_session=${authorSession.id}` } })
+    const authorHtml = await asAuthor.text()
+    check('paywall: author reads their own story in full', !authorHtml.includes('Keep reading with a membership'))
+    await prisma.session.delete({ where: { id: authorSession.id } })
+
+    // a non-member is gated
+    const reader = await prisma.user.findFirstOrThrow({ where: { id: { notIn: [memberPost.authorId] } } })
+    const wasMember = reader.isMember
+    await prisma.user.update({ where: { id: reader.id }, data: { isMember: false } })
+    const rs = await prisma.session.create({ data: { userId: reader.id, expiresAt: new Date(Date.now() + 3600_000) } })
+    const gated = await fetch(BASE + path, { headers: { cookie: `ascend_session=${rs.id}` } })
+    const gatedHtml = await gated.text()
+    check('paywall: non-member sees the gate', gatedHtml.includes('Keep reading with a membership'))
+    // Counting every <p> on the page is meaningless (recommendations and
+    // responses have their own). Assert on a phrase from a LATER paragraph:
+    // it must be absent when gated and present when not.
+    const paras = memberPost.contentHtml.match(/<p>([\s\S]*?)<\/p>/g) ?? []
+    const latePara = paras[Math.min(5, paras.length - 1)] ?? ''
+    const lateText = latePara.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).slice(0, 8).join(' ')
+    check('paywall: later paragraphs withheld when gated', lateText.length > 0 && !gatedHtml.includes(lateText), lateText)
+    const tail = memberPost.contentHtml.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).slice(-6).join(' ')
+    check('paywall: closing text withheld from non-members', !gatedHtml.includes(tail), tail)
+
+    // restore
+    await prisma.user.update({ where: { id: reader.id }, data: { isMember: wasMember } })
+    const asMember = await fetch(BASE + path, { headers: { cookie: `ascend_session=${rs.id}` } })
+    const memberHtml = await asMember.text()
+    check('paywall: member reads it in full', !memberHtml.includes('Keep reading with a membership'))
+    const parasB = memberPost.contentHtml.match(/<p>([\s\S]*?)<\/p>/g) ?? []
+    const lateB = (parasB[Math.min(5, parasB.length - 1)] ?? '').replace(/<[^>]*>/g, ' ').trim().split(/\s+/).slice(0, 8).join(' ')
+    check('paywall: those same paragraphs ARE served to a member', lateB.length > 0 && memberHtml.includes(lateB), lateB)
+    await prisma.session.delete({ where: { id: rs.id } })
+  } else {
+    check('paywall: a member-only story exists to test', false)
+  }
+
   // cleanup
   await prisma.post.delete({ where: { id: draft.id } }).catch(() => {})
   await prisma.session.delete({ where: { id: session.id } }).catch(() => {})

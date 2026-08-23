@@ -12,7 +12,8 @@ import { StoryFooter } from '@/components/StoryFooter'
 import { StoryStickyBar } from '@/components/StoryStickyBar'
 import { StoryToc } from '@/components/StoryToc'
 import { StoryRecommendations } from '@/components/StoryRecommendations'
-import { formatDate } from '@/lib/utils'
+import { Paywall } from '@/components/Paywall'
+import { formatDate, previewHtml } from '@/lib/utils'
 
 async function load(username: string, slug: string) {
   if (!username.startsWith('@')) return null
@@ -67,6 +68,11 @@ export default async function StoryPage({
       update: { readAt: new Date() },
     })
   }
+
+  // The author always reads their own story in full; everyone else needs
+  // a membership once the story is marked member-only.
+  const locked = post.isMemberOnly && me?.id !== post.authorId && !me?.isMember
+  const bodyHtml = locked ? previewHtml(post.contentHtml) : post.contentHtml
 
   const clapTotal = post.claps.reduce((n, c) => n + c.count, 0)
   const myClaps = me ? (post.claps.find((c) => c.userId === me.id)?.count ?? 0) : 0
@@ -145,11 +151,13 @@ export default async function StoryPage({
         />
 
         <StoryBody
-          html={post.contentHtml}
+          html={bodyHtml}
           postId={post.id}
           signedIn={Boolean(me)}
           highlights={myHighlights.map((h) => ({ id: h.id, paraIndex: h.paraIndex, startOff: h.startOff, endOff: h.endOff }))}
         />
+
+        {locked && <Paywall />}
 
         <StoryFooter tags={post.tags.map((t) => t.tag)} author={post.author} isFollowing={isFollowing} showFollow={Boolean(me) && me?.id !== post.authorId} />
       </article>
