@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────── People ───────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  name         String
+  email        String   @unique
+  passwordHash String
+  bio          String?  @db.VarChar(160)
+  about        String?
+  avatarUrl    String?
+  headerUrl    String?
+  pronouns     String?
+  isVerified   Boolean  @default(false)
+  isMember     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  posts         Post[]
+  responses     Response[]
+  claps         Clap[]
+  lists         ReadingList[]
+  highlights    Highlight[]
+  sessions      Session[]
+  history       ReadingHistory[]
+  following     Follow[]         @relation("follower")
+  followers     Follow[]         @relation("following")
+  tagFollows    TagFollow[]
+  pubMembers    PublicationMember[]
+  notifications Notification[]   @relation("recipient")
+  actedOn       Notification[]   @relation("actor")
+  mutes         Mute[]           @relation("muter")
+  mutedBy       Mute[]           @relation("muted")
+
+  @@index([username])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+}
+
+model Mute {
+  muterId   String
+  mutedId   String
+  createdAt DateTime @default(now())
+  muter     User     @relation("muter", fields: [muterId], references: [id], onDelete: Cascade)
+  muted     User     @relation("muted", fields: [mutedId], references: [id], onDelete: Cascade)
+
+  @@id([muterId, mutedId])
+}
+
+// ─────────────────────────── Content ───────────────────────────
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  UNLISTED
+}
+
+model Post {
+  id            String     @id @default(cuid())
+  slug          String     @unique
+  title         String     @default("")
+  subtitle      String?
+  contentJson   Json?
+  contentHtml   String     @default("")
+  excerpt       String     @default("")
+  coverImage    String?
+  readingTime   Int        @default(1)
+  wordCount     Int        @default(0)
+  status        PostStatus @default(DRAFT)
+  isMemberOnly  Boolean    @default(false)
+  allowResponses Boolean   @default(true)
+  publishedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  publicationId String?
+  publication   Publication? @relation(fields: [publicationId], references: [id])
+
+  tags       PostTag[]
+  responses  Response[]
+  claps      Clap[]
+  listItems  ListItem[]
+  highlights Highlight[]
+  history    ReadingHistory[]
+  notifications Notification[]
+
+  @@index([authorId])
+  @@index([status, publishedAt])
+  @@index([publicationId])
+}
+
+model Tag {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  posts       PostTag[]
+  followers   TagFollow[]
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+}
+
+model TagFollow {
+  userId String
+  tagId  String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tagId])
+}
+
+model Publication {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  tagline     String?
+  description String?
+  logoUrl     String?
+  coverUrl    String?
+  createdAt   DateTime @default(now())
+  posts       Post[]
+  members     PublicationMember[]
+}
+
+model PublicationMember {
+  publicationId String
+  userId        String
+  role          String      @default("WRITER") // OWNER | EDITOR | WRITER
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([publicationId, userId])
+}
+
+// ─────────────────────────── Engagement ───────────────────────────
+
+model Response {
+  id          String   @id @default(cuid())
+  contentHtml String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId String?
+  parent   Response?  @relation("thread", fields: [parentId], references: [id], onDelete: Cascade)
+  children Response[] @relation("thread")
+  claps    Clap[]
+  notifications Notification[]
+
+  @@index([postId])
+  @@index([parentId])
+}
+
+// One row per (user, target). `count` is the number of claps, capped at 50.
+model Clap {
+  id         String   @id @default(cuid())
+  count      Int      @default(1)
+  createdAt  DateTime @default(now())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId     String?
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  responseId String?
+  response   Response? @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, responseId])
+  @@index([postId])
+}
+
+model ReadingList {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isPrivate   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       ListItem[]
+
+  @@index([userId])
+}
+
+model ListItem {
+  listId    String
+  postId    String
+  note      String?
+  addedAt   DateTime    @default(now())
+  list      ReadingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  post      Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([listId, postId])
+  @@index([postId])
+}
+
+model Highlight {
+  id        String   @id @default(cuid())
+  text      String
+  // Serialized ProseMirror-ish anchor: paragraph index + char offsets
+  paraIndex Int
+  startOff  Int
+  endOff    Int
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model ReadingHistory {
+  userId   String
+  postId   String
+  readAt   DateTime @default(now())
+  progress Float    @default(0)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([userId, readAt])
+}
+
+enum NotificationType {
+  CLAP
+  RESPONSE
+  FOLLOW
+  MENTION
+  HIGHLIGHT
+  PUBLISHED
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  type       NotificationType
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  userId     String
+  user       User             @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
+  actorId    String
+  actor      User             @relation("actor", fields: [actorId], references: [id], onDelete: Cascade)
+  postId     String?
+  post       Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  responseId String?
+  response   Response?        @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+}

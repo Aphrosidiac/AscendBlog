@@ -1,0 +1,273 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════
+   Ascend — design tokens
+   Geometry + type scale measured from medium.com (see _research/).
+   Palette is Ascend's: the accent green is replaced by Ascend black.
+   ═══════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Fonts */
+  --font-sans: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: var(--font-serif), Georgia, Cambria, serif;
+  --font-display: var(--font-display), Georgia, serif;
+  --font-display-serif: var(--font-display-serif), Georgia, "Times New Roman", serif;
+
+  /* Backgrounds */
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f2f2f2;
+  --color-bg-tertiary: #f9f9f9;
+  --color-bg-inverse: #242424;
+  --color-bg-brand: #0a0a0a;
+  --color-bg-brand-hover: #000000;
+  --color-bg-accent-2: #d9d9d9;
+  --color-bg-accent-3: #e8e8e8;
+  --color-bg-accent-4: #f4f4f4;
+  --color-bg-error: #c94a4a;
+  --color-bg-error-hover: #b63636;
+  --color-bg-yellow: #fffae1;
+  --color-bg-blue: #e5f2ff;
+  --color-bg-story-footer: #f7f4ed;
+  --color-bg-cream: #f7f4ed;
+
+  /* Foregrounds */
+  --color-fg: #242424;
+  --color-fg-hover: #000000;
+  --color-fg-secondary: #6b6b6b;
+  --color-fg-secondary-hover: #3f3f3f;
+  --color-fg-inverse: #ffffff;
+  --color-fg-accent: #0a0a0a;
+  --color-fg-accent-hover: #000000;
+  --color-fg-error: #c94a4a;
+
+  /* Borders */
+  --color-border: #f2f2f2;
+  --color-border-hover: #e5e5e5;
+  --color-border-strong: #242424;
+  --color-border-mid: #e5e5e5;
+  --color-border-mid-hover: #d2d2d2;
+
+  /* Highlight / promo */
+  --color-highlight: #ffc017;
+  --color-highlight-text: #242424;
+
+  /* Layout rails (measured) */
+  --width-story: 680px;    /* article + feed column */
+  --width-editor: 700px;   /* editor is 20px wider than the read view */
+  --width-feed: 680px;
+  --width-rail: 239px;     /* left nav block, pinned to viewport left */
+  --width-main: 968px;     /* feed column is centred inside this */
+  --width-aside: 368px;
+  --width-shell: 1336px;   /* main + aside, centred in the space after the rail */
+  --height-header: 65px;
+}
+
+/* Dark theme — mirrors Medium's inversion */
+@layer base {
+  :root[data-theme="dark"] {
+    --color-bg: #000000;
+    --color-bg-secondary: #1a1a1a;
+    --color-bg-tertiary: #121212;
+    --color-bg-inverse: #ffffff;
+    --color-bg-brand: #ffffff;
+    --color-bg-brand-hover: #f2f2f2;
+    --color-bg-story-footer: #1a1a1a;
+    --color-bg-cream: #0d0d0d;
+    --color-fg: #e6e6e6;
+    --color-fg-hover: #ffffff;
+    --color-fg-secondary: #a3a3a3;
+    --color-fg-secondary-hover: #d4d4d4;
+    --color-fg-inverse: #000000;
+    --color-fg-accent: #ffffff;
+    --color-fg-accent-hover: #f2f2f2;
+    --color-border: #2a2a2a;
+    --color-border-hover: #383838;
+    --color-border-strong: #e6e6e6;
+    --color-border-mid: #2f2f2f;
+    --color-border-mid-hover: #444444;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background: #b4d5fe;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Story typography — the reading surface.
+   Measured: h1 42/52 -0.011em 700 · body 20/32 -0.003em 400 serif
+   ═══════════════════════════════════════════════════════════════ */
+
+.story-body {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 32px;
+  letter-spacing: -0.003em;
+  color: var(--color-fg);
+}
+
+.story-body > * + * {
+  margin-top: 2em;
+}
+
+.story-body p,
+.story-body ul,
+.story-body ol,
+.story-body blockquote,
+.story-body pre,
+.story-body figure {
+  margin-top: 2em;
+}
+
+.story-body h1 {
+  font-family: var(--font-sans);
+  font-size: 34px;
+  line-height: 40px;
+  font-weight: 700;
+  letter-spacing: -0.016em;
+  margin-top: 1.95em;
+  margin-bottom: -0.28em;
+}
+
+.story-body h2 {
+  font-family: var(--font-sans);
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 600;
+  letter-spacing: -0.016em;
+  margin-top: 1.95em;
+  margin-bottom: -0.28em;
+}
+
+.story-body h3 {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  margin-top: 1.7em;
+  margin-bottom: -0.3em;
+}
+
+.story-body a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.story-body a:hover {
+  color: var(--color-fg-hover);
+}
+
+.story-body strong { font-weight: 700; }
+.story-body em { font-style: italic; }
+
+.story-body blockquote {
+  border-left: 3px solid var(--color-fg);
+  padding-left: 23px;
+  margin-left: -26px;
+  font-style: italic;
+  color: var(--color-fg-secondary);
+}
+
+.story-body ul { list-style: disc; padding-left: 30px; }
+.story-body ol { list-style: decimal; padding-left: 30px; }
+.story-body li { margin-top: 0.86em; }
+.story-body li p { margin-top: 0; }
+
+.story-body pre {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-mid);
+  border-radius: 4px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 24px;
+  overflow-x: auto;
+}
+
+.story-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  background: var(--color-bg-tertiary);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.story-body pre code { background: none; padding: 0; font-size: inherit; }
+
+.story-body hr {
+  border: none;
+  margin: 2.4em 0;
+  text-align: center;
+}
+
+.story-body hr::before {
+  content: "···";
+  letter-spacing: 0.6em;
+  color: var(--color-fg-secondary);
+  font-size: 24px;
+}
+
+.story-body figure { margin-top: 2.4em; }
+.story-body figcaption {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-fg-secondary);
+  text-align: center;
+  margin-top: 10px;
+}
+
+.story-body mark,
+.story-body .hl {
+  background: #ffeaa0;
+  padding: 0;
+}
+
+/* Utility: line clamping used across feed cards */
+.clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Hide scrollbar for horizontal topic rails */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Editor surface ──────────────────────────────────────────────
+   Same type as the reading view, 1px wider column, with the
+   ProseMirror placeholder and caret affordances. */
+.editor-surface {
+  min-height: 320px;
+}
+
+.editor-surface p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: #b3b3b3;
+}
+
+.editor-surface:focus { outline: none; }
+
+.editor-surface img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 2em 0;
+}
+
+.editor-surface .ProseMirror-selectednode {
+  outline: 2px solid var(--color-fg);
+}

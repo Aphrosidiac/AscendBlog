@@ -1,0 +1,145 @@
+import 'dotenv/config'
+import { PrismaClient } from '../src/generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) })
+const BASE = 'http://localhost:3122'
+
+let pass = 0, fail = 0
+function check(name: string, ok: boolean, detail = '') {
+  if (ok) { pass++; console.log(`  ok   ${name}`) }
+  else { fail++; console.log(`FAIL   ${name} ${detail}`) }
+}
+
+async function main() {
+  const me = await prisma.user.findUniqueOrThrow({ where: { username: 'fakhrul' } })
+  const other = await prisma.user.findFirstOrThrow({ where: { username: 'amira_z' } })
+  const session = await prisma.session.create({ data: { userId: me.id, expiresAt: new Date(Date.now() + 3600_000) } })
+  const cookie = `ascend_session=${session.id}`
+  const H = { cookie, 'content-type': 'application/json' }
+
+  const post = await prisma.post.findFirstOrThrow({ where: { status: 'PUBLISHED', authorId: other.id } })
+
+  // ── CLAP ──────────────────────────────────────────────
+  const before = await prisma.clap.aggregate({ where: { postId: post.id }, _sum: { count: true } })
+  const clapRes = await fetch(`${BASE}/api/posts/${post.id}/clap`, { method: 'POST', headers: H, body: JSON.stringify({ count: 7 }) })
+  const clapJson = await clapRes.json()
+  check('clap: accepted', clapRes.ok)
+  check('clap: mine recorded as 7', clapJson.mine === 7, JSON.stringify(clapJson))
+  check('clap: total increased', clapJson.total === (before._sum.count ?? 0) + 7, `${clapJson.total} vs ${(before._sum.count ?? 0) + 7}`)
+
+  const capRes = await fetch(`${BASE}/api/posts/${post.id}/clap`, { method: 'POST', headers: H, body: JSON.stringify({ count: 999 }) })
+  const capJson = await capRes.json()
+  check('clap: capped at 50', capJson.mine === 50, JSON.stringify(capJson))
+
+  // ── BOOKMARK ──────────────────────────────────────────
+  const bmOn = await fetch(`${BASE}/api/posts/${post.id}/bookmark`, { method: 'POST', headers: H })
+  check('bookmark: save ok', bmOn.ok)
+  const savedRow = await prisma.listItem.findFirst({ where: { postId: post.id, list: { userId: me.id } } })
+  check('bookmark: row created in default list', Boolean(savedRow))
+  const bmOff = await fetch(`${BASE}/api/posts/${post.id}/bookmark`, { method: 'DELETE', headers: H })
+  check('bookmark: unsave ok', bmOff.ok)
+  const goneRow = await prisma.listItem.findFirst({ where: { postId: post.id, list: { userId: me.id } } })
+  check('bookmark: row removed', !goneRow)
+
+  // ── FOLLOW ────────────────────────────────────────────
+  await prisma.follow.deleteMany({ where: { followerId: me.id, followingId: other.id } })
+  const fOn = await fetch(`${BASE}/api/users/${other.id}/follow`, { method: 'POST', headers: H })
+  check('follow: ok', fOn.ok)
+  check('follow: row exists', Boolean(await prisma.follow.findUnique({ where: { followerId_followingId: { followerId: me.id, followingId: other.id } } })))
+  const selfFollow = await fetch(`${BASE}/api/users/${me.id}/follow`, { method: 'POST', headers: H })
+  check('follow: cannot follow self', selfFollow.status === 400)
+  const fOff = await fetch(`${BASE}/api/users/${other.id}/follow`, { method: 'DELETE', headers: H })
+  check('unfollow: ok', fOff.ok)
+
+  // ── RESPONSE ──────────────────────────────────────────
+  const rRes = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'A test response.\n\nSecond paragraph.' }) })
+  const rJson = await rRes.json()
+  check('response: created', rRes.status === 201, JSON.stringify(rJson))
+  const created = await prisma.response.findUnique({ where: { id: rJson.id } })
+  check('response: two paragraphs rendered', (created?.contentHtml.match(/<p>/g) ?? []).length === 2, created?.contentHtml)
+
+  const xssRes = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: '<script>alert(1)</script>' }) })
+  const xssJson = await xssRes.json()
+  const xssRow = await prisma.response.findUnique({ where: { id: xssJson.id } })
+  check('response: script tag escaped', !xssRow?.contentHtml.includes('<script>'), xssRow?.contentHtml)
+
+  const reply = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'A nested reply.', parentId: rJson.id }) })
+  check('response: nested reply created', reply.status === 201)
+
+  const badParent = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'x', parentId: 'nonexistent' }) })
+  check('response: rejects bad parent', badParent.status === 400)
+
+  const emptyRes = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: '   ' }) })
+  check('response: rejects empty', emptyRes.status === 400)
+
+  // ── HIGHLIGHT ─────────────────────────────────────────
+  const hRes = await fetch(`${BASE}/api/posts/${post.id}/highlights`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'some text', paraIndex: 0, startOff: 0, endOff: 9 }) })
+  check('highlight: created', hRes.status === 201)
+  const badH = await fetch(`${BASE}/api/posts/${post.id}/highlights`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'x', paraIndex: 0, startOff: 5, endOff: 2 }) })
+  check('highlight: rejects inverted range', badH.status === 400)
+
+  // ── LISTS ─────────────────────────────────────────────
+  const lRes = await fetch(`${BASE}/api/lists`, { method: 'POST', headers: H, body: JSON.stringify({ name: 'Test list', isPrivate: true }) })
+  check('list: created', lRes.status === 201)
+  const lBad = await fetch(`${BASE}/api/lists`, { method: 'POST', headers: H, body: JSON.stringify({ name: '  ' }) })
+  check('list: rejects blank name', lBad.status === 400)
+
+  // ── PROFILE ───────────────────────────────────────────
+  const pRes = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: H, body: JSON.stringify({ name: 'Fakhrul', bio: 'Updated bio', about: 'About text', pronouns: 'he/him' }) })
+  check('profile: updated', pRes.ok)
+  const fresh = await prisma.user.findUniqueOrThrow({ where: { id: me.id } })
+  check('profile: bio persisted', fresh.bio === 'Updated bio', fresh.bio ?? '')
+
+  // ── DRAFT → PUBLISH ───────────────────────────────────
+  const draft = await prisma.post.create({ data: { authorId: me.id, slug: `t-${Date.now()}`, title: '', contentHtml: '<p></p>' } })
+  const noTitle = await fetch(`${BASE}/api/posts/${draft.id}/publish`, { method: 'POST', headers: H, body: JSON.stringify({ tags: [] }) })
+  check('publish: blocked without a title', noTitle.status === 400)
+
+  await fetch(`${BASE}/api/posts/${draft.id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ title: 'A Functional Test Story', contentHtml: '<p>' + 'word '.repeat(300) + '</p>' }) })
+  const afterPatch = await prisma.post.findUniqueOrThrow({ where: { id: draft.id } })
+  check('autosave: title saved', afterPatch.title === 'A Functional Test Story')
+  check('autosave: reading time computed', afterPatch.readingTime === 1, String(afterPatch.readingTime))
+  check('autosave: excerpt generated', afterPatch.excerpt.length > 0)
+
+  const tag = await prisma.tag.findFirstOrThrow()
+  const pubRes = await fetch(`${BASE}/api/posts/${draft.id}/publish`, { method: 'POST', headers: H, body: JSON.stringify({ tags: [tag.slug], isMemberOnly: false }) })
+  const pubJson = await pubRes.json()
+  check('publish: succeeds with a title', pubRes.ok, JSON.stringify(pubJson))
+  check('publish: returns a slug path', typeof pubJson.path === 'string' && pubJson.path.includes('/@fakhrul/'), JSON.stringify(pubJson))
+  const published = await prisma.post.findUniqueOrThrow({ where: { id: draft.id }, include: { tags: true } })
+  check('publish: status is PUBLISHED', published.status === 'PUBLISHED')
+  check('publish: tag attached', published.tags.length === 1)
+  check('publish: slug is human readable', published.slug.startsWith('a-functional-test-story-'), published.slug)
+
+  // published story is reachable
+  const storyRes = await fetch(`${BASE}${pubJson.path}`, { headers: { cookie } })
+  check('publish: story page loads', storyRes.ok, String(storyRes.status))
+
+  // ── AUTHORISATION ─────────────────────────────────────
+  const otherPost = await prisma.post.findFirstOrThrow({ where: { authorId: other.id } })
+  const forbidden = await fetch(`${BASE}/api/posts/${otherPost.id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ title: 'hacked' }) })
+  check('authz: cannot edit another author’s post', forbidden.status === 403)
+  const forbiddenDel = await fetch(`${BASE}/api/posts/${otherPost.id}`, { method: 'DELETE', headers: H })
+  check('authz: cannot delete another author’s post', forbiddenDel.status === 403)
+  const anon = await fetch(`${BASE}/api/posts/${post.id}/clap`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ count: 1 }) })
+  check('authz: anonymous clap rejected', anon.status === 401)
+
+  // ── TAG FOLLOW ────────────────────────────────────────
+  const tfOn = await fetch(`${BASE}/api/tags/${tag.id}/follow`, { method: 'POST', headers: H })
+  check('tag follow: ok', tfOn.ok)
+  const tfOff = await fetch(`${BASE}/api/tags/${tag.id}/follow`, { method: 'DELETE', headers: H })
+  check('tag unfollow: ok', tfOff.ok)
+
+  // ── NOTIFICATIONS ─────────────────────────────────────
+  const notifs = await prisma.notification.count({ where: { userId: other.id } })
+  check('notify: author notified by clap/response', notifs > 0, String(notifs))
+
+  // cleanup
+  await prisma.post.delete({ where: { id: draft.id } }).catch(() => {})
+  await prisma.session.delete({ where: { id: session.id } }).catch(() => {})
+
+  console.log(`\n${pass} passed, ${fail} failed`)
+  process.exitCode = fail ? 1 : 0
+}
+main().finally(() => prisma.$disconnect())
