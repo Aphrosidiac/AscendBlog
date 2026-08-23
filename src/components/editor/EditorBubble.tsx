@@ -1,29 +1,19 @@
 'use client'
 import { BubbleMenu } from '@tiptap/react/menus'
-import type { Editor } from '@tiptap/react'
-import { useEffect, useReducer, useState } from 'react'
+import { useEditorState, type Editor } from '@tiptap/react'
+import { useState } from 'react'
 import {
   IconBold, IconItalic, IconLink, IconNote, IconPullQuote,
   IconQuote, IconTitleLarge, IconTitleSmall,
 } from '../icons'
 
-/** Selection toolbar: bold, italic, link, H1, H2, quote, pull-quote, private note. */
-export function EditorBubble({ editor }: { editor: Editor }) {
-  const [linking, setLinking] = useState(false)
-  const [href, setHref] = useState('')
-  // Without this the toolbar renders once and `isActive` never updates, so the
-  // active format is never highlighted.
-  const [, bump] = useReducer((n: number) => n + 1, 0)
-
-  useEffect(() => {
-    editor.on('transaction', bump)
-    editor.on('selectionUpdate', bump)
-    return () => { editor.off('transaction', bump); editor.off('selectionUpdate', bump) }
-  }, [editor])
-
-  const Btn = ({
-    on, onClick, label, children,
-  }: { on?: boolean; onClick: () => void; label: string; children: React.ReactNode }) => (
+/** Declared out here so it keeps its identity between renders — a component
+ *  defined inside the body is a new type each time, which remounts the subtree
+ *  and drops focus out of the link field. */
+function Btn({
+  on, onClick, label, children,
+}: { on?: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
+  return (
     <button
       onClick={onClick}
       aria-label={label}
@@ -34,6 +24,31 @@ export function EditorBubble({ editor }: { editor: Editor }) {
       {children}
     </button>
   )
+}
+
+/** Selection toolbar: bold, italic, link, H1, H2, quote, pull-quote, private note. */
+export function EditorBubble({ editor }: { editor: Editor }) {
+  const [linking, setLinking] = useState(false)
+  const [href, setHref] = useState('')
+
+  // Re-render only when one of these flags actually flips.
+  //
+  // Forcing a render on every `transaction` instead looks equivalent and is
+  // not: rendering the bubble repositions it, that dispatches a transaction,
+  // and the two feed each other until React gives up with "Maximum update
+  // depth exceeded". useEditorState compares the selected values first.
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: e }) => ({
+      bold: e.isActive('bold'),
+      italic: e.isActive('italic'),
+      link: e.isActive('link'),
+      h1: e.isActive('heading', { level: 1 }),
+      h2: e.isActive('heading', { level: 2 }),
+      blockquote: e.isActive('blockquote'),
+      bulletList: e.isActive('bulletList'),
+    }),
+  })
 
   function applyLink() {
     const url = href.trim()
@@ -63,26 +78,26 @@ export function EditorBubble({ editor }: { editor: Editor }) {
         </div>
       ) : (
         <>
-          <Btn label="Bold" on={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+          <Btn label="Bold" on={active.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
             <IconBold size={18} />
           </Btn>
-          <Btn label="Italic" on={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <Btn label="Italic" on={active.italic} onClick={() => editor.chain().focus().toggleItalic().run()}>
             <IconItalic size={18} />
           </Btn>
-          <Btn label="Link" on={editor.isActive('link')} onClick={() => { setHref(editor.getAttributes('link').href ?? ''); setLinking(true) }}>
+          <Btn label="Link" on={active.link} onClick={() => { setHref(editor.getAttributes('link').href ?? ''); setLinking(true) }}>
             <IconLink size={18} />
           </Btn>
           <span className="mx-1 h-5 w-px bg-white/25" />
-          <Btn label="Big heading" on={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+          <Btn label="Big heading" on={active.h1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
             <IconTitleLarge size={18} />
           </Btn>
-          <Btn label="Small heading" on={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+          <Btn label="Small heading" on={active.h2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
             <IconTitleSmall size={18} />
           </Btn>
-          <Btn label="Quote" on={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+          <Btn label="Quote" on={active.blockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
             <IconQuote size={18} />
           </Btn>
-          <Btn label="Bulleted list" on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <Btn label="Bulleted list" on={active.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()}>
             <IconPullQuote size={18} />
           </Btn>
           <span className="mx-1 h-5 w-px bg-white/25" />

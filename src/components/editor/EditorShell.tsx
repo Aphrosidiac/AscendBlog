@@ -50,21 +50,64 @@ export function EditorShell({
     },
   })
 
+  // Set whenever there are keystrokes the server has not acknowledged, so the
+  // unload handler below knows whether it has anything to flush.
+  const dirty = useRef(false)
+
+  const body = useCallback(
+    () => JSON.stringify({ title, subtitle, contentHtml: editor?.getHTML() ?? '' }),
+    [editor, title, subtitle],
+  )
+
+  // `body` changes identity on every keystroke. The unload effect below must
+  // not re-run (and so re-fire its cleanup) that often, so it reads through a
+  // ref and mounts once instead.
+  const bodyRef = useRef(body)
+  useEffect(() => { bodyRef.current = body }, [body])
+
   const save = useCallback(async () => {
     if (!editor) return
     setSaved('saving')
     await fetch(`/api/posts/${postId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title, subtitle, contentHtml: editor.getHTML() }),
+      body: body(),
     }).catch(() => {})
+    dirty.current = false
     setSaved('saved')
-  }, [editor, postId, title, subtitle])
+  }, [editor, postId, body])
 
   const queueSave = useCallback(() => {
+    dirty.current = true
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(save, 1200)
   }, [save])
+
+  // The debounce means the last ~1.2s of typing is still only in the browser.
+  // Closing the tab, reloading, or following a plain link would drop it, so
+  // flush on the way out. `keepalive` is what lets the request outlive the
+  // page — a normal fetch is cancelled as the document tears down.
+  useEffect(() => {
+    const flush = () => {
+      if (!dirty.current) return
+      if (timer.current) clearTimeout(timer.current)
+      dirty.current = false
+      fetch(`/api/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: bodyRef.current(),
+        keepalive: true,
+      }).catch(() => {})
+    }
+    const onHide = () => { if (document.visibilityState === 'hidden') flush() }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onHide)
+      flush() // client-side navigation away from the editor
+    }
+  }, [postId])
 
   useEffect(() => {
     if (!editor) return

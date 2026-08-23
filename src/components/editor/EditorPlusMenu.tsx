@@ -36,7 +36,11 @@ export function EditorPlusMenu({ editor }: { editor: Editor }) {
       if (!isEmptyPara) { setPos(null); setOpen(false); return }
       const coords = view.coordsAtPos($from.pos)
       const host = view.dom.getBoundingClientRect()
-      setPos({ top: coords.top - host.top })
+      const top = coords.top - host.top
+      // Bail out when the caret has not actually moved. Handing React a fresh
+      // object on every transaction makes it re-render every time, and a
+      // re-render can itself produce a transaction — which is a loop.
+      setPos((prev) => (prev && Math.abs(prev.top - top) < 0.5 ? prev : { top }))
     }
     editor.on('selectionUpdate', update)
     editor.on('transaction', update)
