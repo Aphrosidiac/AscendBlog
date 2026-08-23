@@ -8,6 +8,7 @@ const cardSelect = {
   publication: { select: { slug: true, name: true } },
   _count: { select: { responses: true } },
   claps: { select: { count: true } },
+  reposts: { select: { userId: true } },
 } as const
 
 type Row = {
@@ -17,17 +18,33 @@ type Row = {
   publication: { slug: string; name: string } | null
   _count: { responses: number }
   claps: { count: number }[]
+  reposts?: { userId: string }[]
 }
 
-function toCard(p: Row, savedIds?: Set<string>): FeedStory {
+function toCard(p: Row, savedIds?: Set<string>, meId?: string): FeedStory {
   return {
     id: p.id, slug: p.slug, title: p.title, subtitle: p.subtitle, excerpt: p.excerpt,
     coverImage: p.coverImage, readingTime: p.readingTime, publishedAt: p.publishedAt,
     isMemberOnly: p.isMemberOnly, author: p.author, publication: p.publication,
     clapCount: p.claps.reduce((n, c) => n + c.count, 0),
     responseCount: p._count.responses,
+    repostCount: p.reposts?.length ?? 0,
+    reposted: meId ? Boolean(p.reposts?.some((r) => r.userId === meId)) : false,
     saved: savedIds?.has(p.id) ?? false,
   }
+}
+
+/**
+ * Stories this reader has muted the author of, or asked to see less like.
+ * Applied to every feed so those actions actually change what comes back.
+ */
+async function suppressedFor(userId?: string) {
+  if (!userId) return { postIds: [] as string[], authorIds: [] as string[] }
+  const [hidden, muted] = await Promise.all([
+    prisma.notInterested.findMany({ where: { userId }, select: { postId: true } }),
+    prisma.mute.findMany({ where: { muterId: userId }, select: { mutedId: true } }),
+  ])
+  return { postIds: hidden.map((h) => h.postId), authorIds: muted.map((m) => m.mutedId) }
 }
 
 export async function savedPostIds(userId?: string) {
@@ -41,6 +58,7 @@ export async function savedPostIds(userId?: string) {
 /** "For you": stories from people and tags you follow, newest first, then everything else. */
 export async function forYouFeed(userId?: string, take = 20) {
   const saved = await savedPostIds(userId)
+  const hide = await suppressedFor(userId)
   if (!userId) {
     const rows = await prisma.post.findMany({
       where: { status: 'PUBLISHED' }, orderBy: { publishedAt: 'desc' }, take, select: cardSelect,
@@ -57,7 +75,11 @@ export async function forYouFeed(userId?: string, take = 20) {
   const tagName = new Map(tagFollows.map((t) => [t.tag.id, t.tag.name]))
 
   const rows = await prisma.post.findMany({
-    where: { status: 'PUBLISHED' },
+    where: {
+      status: 'PUBLISHED',
+      id: { notIn: hide.postIds },
+      authorId: { notIn: hide.authorIds },
+    },
     orderBy: { publishedAt: 'desc' },
     take,
     select: { ...cardSelect, tags: { select: { tagId: true } } },
@@ -70,26 +92,39 @@ export async function forYouFeed(userId?: string, take = 20) {
       : followedTag
         ? `Because you follow ${tagName.get(followedTag.tagId)}`
         : undefined
-    return { story: toCard(r as Row, saved), reason }
+    return { story: toCard(r as Row, saved, userId), reason }
   })
 }
 
 /** "Featured": ranked by total claps rather than recency. */
 export async function featuredFeed(userId?: string, take = 20) {
   const saved = await savedPostIds(userId)
+  const hide = await suppressedFor(userId)
   const rows = await prisma.post.findMany({
-    where: { status: 'PUBLISHED' }, take: 60, select: cardSelect,
+    where: {
+      status: 'PUBLISHED',
+      id: { notIn: hide.postIds },
+      authorId: { notIn: hide.authorIds },
+    },
+    take: 60,
+    select: cardSelect,
   })
   return (rows as Row[])
-    .map((r) => toCard(r, saved))
+    .map((r) => toCard(r, saved, userId))
     .sort((a, b) => b.clapCount - a.clapCount)
     .slice(0, take)
     .map((story) => ({ story, reason: undefined as string | undefined }))
 }
 
-export async function staffPicks(take = 3) {
+export async function staffPicks(take = 3, userId?: string) {
+  // Muting an author removes them from recommendations too, not just the feed.
+  const hide = await suppressedFor(userId)
   const rows = await prisma.post.findMany({
-    where: { status: 'PUBLISHED' },
+    where: {
+      status: 'PUBLISHED',
+      id: { notIn: hide.postIds },
+      authorId: { notIn: hide.authorIds },
+    },
     orderBy: { publishedAt: 'desc' },
     take,
     select: {
@@ -109,8 +144,9 @@ export async function whoToFollow(userId?: string, take = 3) {
   const following = userId
     ? (await prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } })).map((f) => f.followingId)
     : []
+  const hide = await suppressedFor(userId)
   return prisma.user.findMany({
-    where: { id: { notIn: [...following, ...(userId ? [userId] : [])] } },
+    where: { id: { notIn: [...following, ...hide.authorIds, ...(userId ? [userId] : [])] } },
     take,
     select: { id: true, name: true, username: true, avatarUrl: true, bio: true, isVerified: true },
   })

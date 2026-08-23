@@ -24,6 +24,7 @@ async function load(username: string, slug: string) {
       publication: { select: { slug: true, name: true } },
       tags: { include: { tag: { select: { id: true, slug: true, name: true } } } },
       claps: { select: { count: true, userId: true } },
+      reposts: { select: { userId: true } },
       _count: { select: { responses: true } },
     },
   })
@@ -148,6 +149,10 @@ export default async function StoryPage({
           saved={saved}
           signedIn={Boolean(me)}
           isAuthor={me?.id === post.authorId}
+          authorId={post.authorId}
+          authorName={post.author.name}
+          reposted={me ? post.reposts.some((r) => r.userId === me.id) : false}
+          repostCount={post.reposts.length}
         />
 
         <StoryBody

@@ -40,6 +40,9 @@ model User {
   actedOn       Notification[]   @relation("actor")
   mutes         Mute[]           @relation("muter")
   mutedBy       Mute[]           @relation("muted")
+  reposts       Repost[]
+  reports       Report[]
+  disinterests  NotInterested[]
 
   @@index([username])
 }
@@ -113,6 +116,9 @@ model Post {
   highlights Highlight[]
   history    ReadingHistory[]
   notifications Notification[]
+  reposts    Repost[]
+  reports    Report[]
+  disinterests NotInterested[]
 
   @@index([authorId])
   @@index([status, publishedAt])
@@ -286,4 +292,42 @@ model Notification {
   response   Response?        @relation(fields: [responseId], references: [id], onDelete: Cascade)
 
   @@index([userId, read, createdAt])
+}
+
+/// A reader re-sharing a story to their own followers, with an optional comment.
+model Repost {
+  id        String   @id @default(cuid())
+  comment   String?
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+}
+
+/// "Show less like this" — demotes the story's author out of that reader's feed.
+model NotInterested {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  reason    String
+  detail    String?
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
 }

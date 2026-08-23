@@ -3,17 +3,22 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { ClapButton } from './ClapButton'
 import { BookmarkButton } from './BookmarkButton'
-import { IconComment, IconEllipsis, IconPlay, IconRepost, IconShare } from './icons'
+import { IconComment, IconPlay, IconShare } from './icons'
+import { RepostButton } from './RepostButton'
+import { StoryMoreMenu } from './StoryMoreMenu'
 import { compactNumber } from '@/lib/utils'
 
 export function StoryActionBar({
   postId, slug, title, clapTotal, myClaps, responseCount, saved, signedIn, isAuthor,
+  authorId, authorName, reposted, repostCount,
 }: {
   postId: string; slug: string; title: string
   clapTotal: number; myClaps: number; responseCount: number
   saved: boolean; signedIn: boolean; isAuthor: boolean
+  authorId: string; authorName: string
+  reposted: boolean; repostCount: number
 }) {
-  const [menu, setMenu] = useState<null | 'share' | 'more'>(null)
+  const [menu, setMenu] = useState<null | 'share'>(null)
   const [speaking, setSpeaking] = useState(false)
   const [copied, setCopied] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
@@ -63,7 +68,7 @@ export function StoryActionBar({
         <Link href="#responses" className="flex items-center gap-1.5 text-[14px] hover:text-[var(--color-fg)]">
           <IconComment size={24} /> {compactNumber(responseCount)}
         </Link>
-        <button aria-label="Repost" className="hover:text-[var(--color-fg)]"><IconRepost size={24} /></button>
+        <RepostButton postId={postId} initial={reposted} count={repostCount} size={24} showCount />
       </div>
 
       <div className="flex items-center gap-6 text-[var(--color-fg-secondary)]">
@@ -79,26 +84,13 @@ export function StoryActionBar({
         <button onClick={() => setMenu(menu === 'share' ? null : 'share')} aria-label="Share Post" aria-expanded={menu === 'share'} className="hover:text-[var(--color-fg)]">
           <IconShare size={24} />
         </button>
-        <button onClick={() => setMenu(menu === 'more' ? null : 'more')} aria-label="More options" aria-expanded={menu === 'more'} className="hover:text-[var(--color-fg)]">
-          <IconEllipsis size={24} />
-        </button>
+        <StoryMoreMenu postId={postId} authorId={authorId} authorName={authorName} isAuthor={isAuthor} />
 
         {menu === 'share' && (
           <div role="menu" className="absolute right-0 top-[46px] z-40 w-[240px] rounded-[4px] border border-[var(--color-border-mid)] bg-[var(--color-bg)] py-2 shadow-[0_1px_4px_rgba(0,0,0,.15)]">
             <button onClick={copyLink} className="block w-full px-5 py-2.5 text-left text-[14px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]" role="menuitem">Copy link</button>
             <a href={`https://x.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(typeof window !== 'undefined' ? location.origin + slug : slug)}`} target="_blank" rel="noreferrer" className="block px-5 py-2.5 text-[14px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]" role="menuitem">Share on X</a>
             <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(typeof window !== 'undefined' ? location.origin + slug : slug)}`} target="_blank" rel="noreferrer" className="block px-5 py-2.5 text-[14px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]" role="menuitem">Share on LinkedIn</a>
-          </div>
-        )}
-
-        {menu === 'more' && (
-          <div role="menu" className="absolute right-0 top-[46px] z-40 w-[240px] rounded-[4px] border border-[var(--color-border-mid)] bg-[var(--color-bg)] py-2 shadow-[0_1px_4px_rgba(0,0,0,.15)]">
-            {isAuthor && (
-              <Link href={`/p/${postId}/edit`} className="block px-5 py-2.5 text-[14px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]" role="menuitem">Edit story</Link>
-            )}
-            <button onClick={() => window.print()} className="block w-full px-5 py-2.5 text-left text-[14px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]" role="menuitem">Print</button>
-            <button className="block w-full px-5 py-2.5 text-left text-[14px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]" role="menuitem">Mute this author</button>
-            <button className="block w-full px-5 py-2.5 text-left text-[14px] text-[var(--color-fg-error)]" role="menuitem">Report story</button>
           </div>
         )}
       </div>

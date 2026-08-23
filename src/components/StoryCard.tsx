@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { Avatar } from './Avatar'
 import { ClapButton } from './ClapButton'
 import { BookmarkButton } from './BookmarkButton'
-import { IconComment, IconEllipsis, IconRepost, IconVerified } from './icons'
+import { IconComment, IconEllipsis, IconVerified } from './icons'
+import { RepostButton } from './RepostButton'
+import { NotInterestedButton } from './NotInterestedButton'
+import { StoryMoreMenu } from './StoryMoreMenu'
 import { compactNumber, formatDate } from '@/lib/utils'
 
 export type FeedStory = {
@@ -19,7 +22,9 @@ export type FeedStory = {
   publication: { slug: string; name: string } | null
   clapCount: number
   responseCount: number
+  repostCount?: number
   saved?: boolean
+  reposted?: boolean
 }
 
 /**
@@ -70,17 +75,14 @@ export function StoryCard({ story, reason }: { story: FeedStory; reason?: string
               <Link href={`${href}#responses`} className="flex items-center gap-1.5 hover:text-[var(--color-fg)]">
                 <IconComment size={18} /> {compactNumber(story.responseCount)}
               </Link>
-              <button aria-label="Repost" className="hidden hover:text-[var(--color-fg)] sm:block"><IconRepost size={18} /></button>
+              <span className="hidden sm:block">
+                <RepostButton postId={story.id} initial={story.reposted ?? false} count={story.repostCount ?? 0} showCount />
+              </span>
             </div>
             <div className="flex items-center gap-3 text-[var(--color-fg-secondary)] sm:gap-4">
-              <button aria-label="Show less like this" title="Show less like this" className="hidden hover:text-[var(--color-fg)] sm:block">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path d="M7 4h9.5a2 2 0 0 1 2 1.6l1 5A2 2 0 0 1 17.5 13H13l.8 3.5a2 2 0 0 1-1.95 2.5L7 10.5V4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <path d="M4 4h3v6.5H4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                </svg>
-              </button>
+              <NotInterestedButton postId={story.id} />
               <BookmarkButton postId={story.id} initial={story.saved ?? false} />
-              <button aria-label="More options" className="hover:text-[var(--color-fg)]"><IconEllipsis size={20} /></button>
+              <StoryMoreMenu postId={story.id} authorId={story.author.id} authorName={story.author.name} />
             </div>
           </div>
         </div>

@@ -13,7 +13,7 @@ const FOOTER = [
 
 export async function AsideRail({ userId, showPicks = true }: { userId?: string; showPicks?: boolean }) {
   const [picks, topics, people] = await Promise.all([
-    showPicks ? staffPicks() : Promise.resolve([]),
+    showPicks ? staffPicks(3, userId) : Promise.resolve([]),
     recommendedTopics(),
     whoToFollow(userId),
   ])

@@ -156,6 +156,50 @@ async function main() {
   const notifs = await prisma.notification.count({ where: { userId: other.id } })
   check('notify: author notified by clap/response', notifs > 0, String(notifs))
 
+  // ── REPOST ────────────────────────────────────────────
+  await prisma.repost.deleteMany({ where: { userId: me.id, postId: post.id } })
+  const rpOn = await fetch(`${BASE}/api/posts/${post.id}/repost`, { method: 'POST', headers: H, body: JSON.stringify({ comment: 'Worth reading.' }) })
+  const rpJson = await rpOn.json()
+  check('repost: created', rpOn.ok && rpJson.reposted === true, JSON.stringify(rpJson))
+  check('repost: count reflects it', rpJson.count >= 1)
+  const rpRow = await prisma.repost.findUnique({ where: { userId_postId: { userId: me.id, postId: post.id } } })
+  check('repost: comment stored', rpRow?.comment === 'Worth reading.')
+  const rpOff = await fetch(`${BASE}/api/posts/${post.id}/repost`, { method: 'DELETE', headers: H })
+  check('repost: undone', rpOff.ok && (await rpOff.json()).reposted === false)
+
+  // ── MUTE (must actually change the feed) ──────────────
+  await prisma.mute.deleteMany({ where: { muterId: me.id } })
+  const feedBefore = await fetch(`${BASE}/`, { headers: { cookie } }).then((r) => r.text())
+  const otherTitle = post.title
+  check('mute: story present before muting', feedBefore.includes(otherTitle.slice(0, 40)))
+
+  const muteOn = await fetch(`${BASE}/api/users/${other.id}/mute`, { method: 'POST', headers: H })
+  check('mute: ok', muteOn.ok)
+  const feedMuted = await fetch(`${BASE}/`, { headers: { cookie } }).then((r) => r.text())
+  check('mute: muted author is gone from the feed', !feedMuted.includes(otherTitle.slice(0, 40)))
+  const selfMute = await fetch(`${BASE}/api/users/${me.id}/mute`, { method: 'POST', headers: H })
+  check('mute: cannot mute yourself', selfMute.status === 400)
+  await fetch(`${BASE}/api/users/${other.id}/mute`, { method: 'DELETE', headers: H })
+  const feedUnmuted = await fetch(`${BASE}/`, { headers: { cookie } }).then((r) => r.text())
+  check('mute: story returns after unmuting', feedUnmuted.includes(otherTitle.slice(0, 40)))
+
+  // ── SHOW LESS LIKE THIS ───────────────────────────────
+  await prisma.notInterested.deleteMany({ where: { userId: me.id } })
+  const niOn = await fetch(`${BASE}/api/posts/${post.id}/not-interested`, { method: 'POST', headers: H })
+  check('show less: ok', niOn.ok)
+  const feedHidden = await fetch(`${BASE}/`, { headers: { cookie } }).then((r) => r.text())
+  check('show less: story drops out of the feed', !feedHidden.includes(otherTitle.slice(0, 40)))
+  await fetch(`${BASE}/api/posts/${post.id}/not-interested`, { method: 'DELETE', headers: H })
+  const feedBack = await fetch(`${BASE}/`, { headers: { cookie } }).then((r) => r.text())
+  check('show less: undo restores it', feedBack.includes(otherTitle.slice(0, 40)))
+
+  // ── REPORT ────────────────────────────────────────────
+  const repOk = await fetch(`${BASE}/api/posts/${post.id}/report`, { method: 'POST', headers: H, body: JSON.stringify({ reason: 'spam', detail: 'test' }) })
+  check('report: accepted', repOk.ok)
+  check('report: row stored', (await prisma.report.count({ where: { postId: post.id, userId: me.id } })) > 0)
+  const repBad = await fetch(`${BASE}/api/posts/${post.id}/report`, { method: 'POST', headers: H, body: JSON.stringify({ reason: 'nonsense' }) })
+  check('report: rejects unknown reason', repBad.status === 400)
+
   // ── MEMBER-ONLY PAYWALL ───────────────────────────────
   const memberPost = await prisma.post.findFirst({
     where: { isMemberOnly: true, status: 'PUBLISHED' },
@@ -203,6 +247,10 @@ async function main() {
   }
 
   // cleanup
+  await prisma.report.deleteMany({ where: { userId: me.id } })
+  await prisma.repost.deleteMany({ where: { userId: me.id } })
+  await prisma.notInterested.deleteMany({ where: { userId: me.id } })
+  await prisma.mute.deleteMany({ where: { muterId: me.id } })
   await prisma.post.delete({ where: { id: draft.id } }).catch(() => {})
   await prisma.session.delete({ where: { id: session.id } }).catch(() => {})
 
