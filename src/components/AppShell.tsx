@@ -2,6 +2,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { TopBar } from './TopBar'
 import { LeftRail } from './LeftRail'
+import { PromoStrip } from './PromoStrip'
 
 /**
  * Signed-in chrome. Geometry measured from the real thing at 1920px:
@@ -33,6 +34,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <TopBar user={user} unread={unread} />
+      {!user.isMember && <PromoStrip />}
       <div className="flex">
         <LeftRail user={user} following={following.map((f) => f.following)} />
         <div className="flex min-w-0 flex-1 justify-center">

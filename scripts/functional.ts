@@ -56,19 +56,24 @@ async function main() {
   check('unfollow: ok', fOff.ok)
 
   // ── RESPONSE ──────────────────────────────────────────
+  const madeResponses: string[] = []
   const rRes = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'A test response.\n\nSecond paragraph.' }) })
   const rJson = await rRes.json()
+  if (rJson?.id) madeResponses.push(rJson.id)
   check('response: created', rRes.status === 201, JSON.stringify(rJson))
   const created = await prisma.response.findUnique({ where: { id: rJson.id } })
   check('response: two paragraphs rendered', (created?.contentHtml.match(/<p>/g) ?? []).length === 2, created?.contentHtml)
 
   const xssRes = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: '<script>alert(1)</script>' }) })
   const xssJson = await xssRes.json()
+  if (xssJson?.id) madeResponses.push(xssJson.id)
   const xssRow = await prisma.response.findUnique({ where: { id: xssJson.id } })
   check('response: script tag escaped', !xssRow?.contentHtml.includes('<script>'), xssRow?.contentHtml)
 
   const reply = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'A nested reply.', parentId: rJson.id }) })
   check('response: nested reply created', reply.status === 201)
+  const replyJson = await reply.json().catch(() => null)
+  if (replyJson?.id) madeResponses.push(replyJson.id)
 
   const badParent = await fetch(`${BASE}/api/posts/${post.id}/responses`, { method: 'POST', headers: H, body: JSON.stringify({ text: 'x', parentId: 'nonexistent' }) })
   check('response: rejects bad parent', badParent.status === 400)
@@ -200,6 +205,48 @@ async function main() {
   const repBad = await fetch(`${BASE}/api/posts/${post.id}/report`, { method: 'POST', headers: H, body: JSON.stringify({ reason: 'nonsense' }) })
   check('report: rejects unknown reason', repBad.status === 400)
 
+  // ── IMAGE UPLOAD ──────────────────────────────────────
+  // 1x1 transparent PNG
+  const pngBytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  const upForm = new FormData()
+  upForm.append('file', new Blob([new Uint8Array(pngBytes)], { type: 'image/png' }), 'dot.png')
+  const upRes = await fetch(`${BASE}/api/upload`, { method: 'POST', headers: { cookie }, body: upForm })
+  const upJson = await upRes.json()
+  check('upload: png accepted', upRes.status === 201, JSON.stringify(upJson))
+  check('upload: returns a served url', typeof upJson.url === 'string' && upJson.url.startsWith('/uploads/'))
+  if (upJson.url) {
+    const fetched = await fetch(BASE + upJson.url)
+    check('upload: file is actually served back', fetched.ok, String(fetched.status))
+  }
+
+  // same bytes must not create a second file (content-hash naming)
+  const dupForm = new FormData()
+  dupForm.append('file', new Blob([new Uint8Array(pngBytes)], { type: 'image/png' }), 'again.png')
+  const dupRes = await fetch(`${BASE}/api/upload`, { method: 'POST', headers: { cookie }, body: dupForm })
+  const dupJson = await dupRes.json()
+  check('upload: identical bytes reuse the same name', dupJson.url === upJson.url, `${dupJson.url} vs ${upJson.url}`)
+
+  // a script claiming to be a png must be rejected on sniffed bytes
+  const evilForm = new FormData()
+  evilForm.append('file', new Blob([new TextEncoder().encode('<?php system($_GET[0]); ?>')], { type: 'image/png' }), 'evil.png')
+  const evilRes = await fetch(`${BASE}/api/upload`, { method: 'POST', headers: { cookie }, body: evilForm })
+  check('upload: rejects a non-image lying about its mime', evilRes.status === 415, String(evilRes.status))
+
+  const anonForm = new FormData()
+  anonForm.append('file', new Blob([new Uint8Array(pngBytes)], { type: 'image/png' }), 'dot.png')
+  const anonUp = await fetch(`${BASE}/api/upload`, { method: 'POST', body: anonForm })
+  check('upload: anonymous upload rejected', anonUp.status === 401)
+
+  // ── REPOSTS TAB ───────────────────────────────────────
+  await fetch(`${BASE}/api/posts/${post.id}/repost`, { method: 'POST', headers: H, body: JSON.stringify({ comment: 'Reposting for the tab test.' }) })
+  const repostsTab = await fetch(`${BASE}/@fakhrul?tab=reposts`, { headers: { cookie } }).then((r) => r.text())
+  check('profile: reposts tab shows the reposted story', repostsTab.includes(post.title.slice(0, 40)))
+  check('profile: reposts tab shows the comment', repostsTab.includes('Reposting for the tab test.'))
+  await fetch(`${BASE}/api/posts/${post.id}/repost`, { method: 'DELETE', headers: H })
+
   // ── MEMBER-ONLY PAYWALL ───────────────────────────────
   const memberPost = await prisma.post.findFirst({
     where: { isMemberOnly: true, status: 'PUBLISHED' },
@@ -246,7 +293,12 @@ async function main() {
     check('paywall: a member-only story exists to test', false)
   }
 
-  // cleanup
+  // cleanup — the suite must leave no residue, or repeat runs silently
+  // accumulate junk in the author's responses and drafts.
+  await prisma.response.deleteMany({ where: { id: { in: madeResponses } } })
+  await prisma.highlight.deleteMany({ where: { userId: me.id, postId: post.id, text: 'some text' } })
+  await prisma.readingList.deleteMany({ where: { userId: me.id, name: 'Test list' } })
+  await prisma.post.deleteMany({ where: { authorId: me.id, title: 'A Functional Test Story' } })
   await prisma.report.deleteMany({ where: { userId: me.id } })
   await prisma.repost.deleteMany({ where: { userId: me.id } })
   await prisma.notInterested.deleteMany({ where: { userId: me.id } })

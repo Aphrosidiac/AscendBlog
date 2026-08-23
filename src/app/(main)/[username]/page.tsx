@@ -59,6 +59,24 @@ export default async function ProfilePage({ params, searchParams }: { params: Pa
     },
   })
 
+  const reposts = tab === 'reposts'
+    ? await prisma.repost.findMany({
+        where: { userId: profile.id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          post: {
+            include: {
+              author: { select: { id: true, name: true, username: true, avatarUrl: true, isVerified: true } },
+              publication: { select: { slug: true, name: true } },
+              claps: { select: { count: true } },
+              reposts: { select: { userId: true } },
+              _count: { select: { responses: true } },
+            },
+          },
+        },
+      })
+    : []
+
   const lists = tab === 'lists'
     ? await prisma.readingList.findMany({
         where: { userId: profile.id, ...(isMe ? {} : { isPrivate: false }) },
@@ -69,6 +87,7 @@ export default async function ProfilePage({ params, searchParams }: { params: Pa
 
   const tabs = [
     { key: 'home', label: 'Home' },
+    { key: 'reposts', label: 'Reposts' },
     { key: 'lists', label: 'Lists' },
     { key: 'about', label: 'About' },
   ]
@@ -116,6 +135,36 @@ export default async function ProfilePage({ params, searchParams }: { params: Pa
                     saved: saved.has(p.id),
                   }}
                 />
+              ))
+            )
+          )}
+
+          {tab === 'reposts' && (
+            reposts.length === 0 ? (
+              <p className="py-16 text-[14px] text-[var(--color-fg-secondary)]">No reposts yet.</p>
+            ) : (
+              reposts.map(({ post: p, comment, createdAt }) => (
+                <div key={p.id}>
+                  {comment && (
+                    <p className="pt-6 text-[15px] leading-[24px] text-[var(--color-fg)]">
+                      <span className="text-[var(--color-fg-secondary)]">{profile.name} reposted · {formatDate(createdAt)}</span>
+                      <br />
+                      {comment}
+                    </p>
+                  )}
+                  <StoryCard
+                    story={{
+                      id: p.id, slug: p.slug, title: p.title, subtitle: p.subtitle, excerpt: p.excerpt,
+                      coverImage: p.coverImage, readingTime: p.readingTime, publishedAt: p.publishedAt,
+                      isMemberOnly: p.isMemberOnly, author: p.author, publication: p.publication,
+                      clapCount: p.claps.reduce((n, c) => n + c.count, 0),
+                      responseCount: p._count.responses,
+                      repostCount: p.reposts.length,
+                      reposted: me ? p.reposts.some((r) => r.userId === me.id) : false,
+                      saved: saved.has(p.id),
+                    }}
+                  />
+                </div>
               ))
             )
           )}

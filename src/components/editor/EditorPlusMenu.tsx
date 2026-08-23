@@ -1,6 +1,6 @@
 'use client'
 import type { Editor } from '@tiptap/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IconCode, IconDivider, IconEmbed, IconImage, IconPlus, IconUnsplash, IconVideo } from '../icons'
 
 /**
@@ -10,6 +10,23 @@ import { IconCode, IconDivider, IconEmbed, IconImage, IconPlus, IconUnsplash, Ic
 export function EditorPlusMenu({ editor }: { editor: Editor }) {
   const [pos, setPos] = useState<{ top: number } | null>(null)
   const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  async function upload(file: File) {
+    setBusy(true)
+    const body = new FormData()
+    body.append('file', file)
+    const res = await fetch('/api/upload', { method: 'POST', body })
+    setBusy(false)
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      alert(j?.error ?? 'That image could not be uploaded.')
+      return
+    }
+    const { url } = await res.json()
+    editor.chain().focus().setImage({ src: url }).run()
+  }
 
   useEffect(() => {
     const update = () => {
@@ -30,7 +47,7 @@ export function EditorPlusMenu({ editor }: { editor: Editor }) {
   if (!pos) return null
 
   const items = [
-    { label: 'Add an image', Icon: IconImage, run: () => { const url = prompt('Image URL'); if (url) editor.chain().focus().setImage({ src: url }).run() } },
+    { label: 'Add an image', Icon: IconImage, run: () => fileInput.current?.click() },
     { label: 'Add an image from a library', Icon: IconUnsplash, run: () => { const url = prompt('Paste an image URL from your library'); if (url) editor.chain().focus().setImage({ src: url }).run() } },
     { label: 'Add a video', Icon: IconVideo, run: () => { const url = prompt('Video URL (YouTube or Vimeo)'); if (url) editor.chain().focus().insertContent(`<p><a href="${url}">${url}</a></p>`).run() } },
     { label: 'Add an embed', Icon: IconEmbed, run: () => { const url = prompt('URL to embed'); if (url) editor.chain().focus().insertContent(`<p><a href="${url}">${url}</a></p>`).run() } },
@@ -40,11 +57,19 @@ export function EditorPlusMenu({ editor }: { editor: Editor }) {
 
   return (
     <div className="absolute -left-12 z-20" style={{ top: pos.top - 4 }}>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }}
+      />
       <div className="flex items-center gap-2">
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label="Add an image, video, embed, or new part"
           aria-expanded={open}
+          disabled={busy}
           className={`flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-fg-secondary)] text-[var(--color-fg-secondary)] transition-transform hover:text-[var(--color-fg)] ${open ? 'rotate-45' : ''}`}
         >
           <IconPlus size={18} />
