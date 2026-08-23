@@ -1,7 +1,7 @@
 'use client'
 import { BubbleMenu } from '@tiptap/react/menus'
 import type { Editor } from '@tiptap/react'
-import { useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import {
   IconBold, IconItalic, IconLink, IconNote, IconPullQuote,
   IconQuote, IconTitleLarge, IconTitleSmall,
@@ -11,6 +11,15 @@ import {
 export function EditorBubble({ editor }: { editor: Editor }) {
   const [linking, setLinking] = useState(false)
   const [href, setHref] = useState('')
+  // Without this the toolbar renders once and `isActive` never updates, so the
+  // active format is never highlighted.
+  const [, bump] = useReducer((n: number) => n + 1, 0)
+
+  useEffect(() => {
+    editor.on('transaction', bump)
+    editor.on('selectionUpdate', bump)
+    return () => { editor.off('transaction', bump); editor.off('selectionUpdate', bump) }
+  }, [editor])
 
   const Btn = ({
     on, onClick, label, children,
