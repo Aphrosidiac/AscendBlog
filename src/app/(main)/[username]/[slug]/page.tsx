@@ -14,6 +14,7 @@ import { StoryToc } from '@/components/StoryToc'
 import { StoryRecommendations } from '@/components/StoryRecommendations'
 import { Paywall } from '@/components/Paywall'
 import { formatDate, previewHtml } from '@/lib/utils'
+import { sanitizeStoryHtml } from '@/lib/sanitize'
 
 async function load(username: string, slug: string) {
   if (!username.startsWith('@')) return null
@@ -73,7 +74,10 @@ export default async function StoryPage({
   // The author always reads their own story in full; everyone else needs
   // a membership once the story is marked member-only.
   const locked = post.isMemberOnly && me?.id !== post.authorId && !me?.isMember
-  const bodyHtml = locked ? previewHtml(post.contentHtml) : post.contentHtml
+  // Sanitised on write too; doing it again here costs nothing on the server and
+  // covers any row that predates that guard.
+  const safe = sanitizeStoryHtml(post.contentHtml)
+  const bodyHtml = locked ? previewHtml(safe) : safe
 
   const clapTotal = post.claps.reduce((n, c) => n + c.count, 0)
   const myClaps = me ? (post.claps.find((c) => c.userId === me.id)?.count ?? 0) : 0
